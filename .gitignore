@@ -1,129 +1,182 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+import random, pygame, sys
+from pygame.locals import *
 
-# C extensions
-*.so
+FPS = 30 # кадров в секунду, общая скорость работы программы
+WINDOWWIDTH = 640 # размер окна
+WINDOWHEIGHT = 480 # размер окна
+REVEALSPEED = 8 # скорость крышек
+BOXSIZE = 40 # размер поля
+GAPSIZE = 10 # размер промежутка между рамками в пикселях
+BOARDWIDTH = 3 # количество столбов
+BOARDHEIGHT = 2 # количество строк
+assert (BOARDWIDTH * BOARDHEIGHT) % 2 == 0, 'На доске должно быть четное количество коробков для пар спичек.'
+XMARGIN = int((WINDOWWIDTH - (BOARDWIDTH * (BOXSIZE + GAPSIZE))) / 2)
+YMARGIN = int((WINDOWHEIGHT - (BOARDHEIGHT * (BOXSIZE + GAPSIZE))) / 2)
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+#            R    G    B
+GRAY     = (100, 100, 100)
+NAVYBLUE = ( 60,  60, 100)
+WHITE    = (255, 255, 255)
+RED      = (255,   0,   0)
+GREEN    = (  0, 255,   0)
+BLUE     = (  0,   0, 255)
+YELLOW   = (255, 255,   0)
+ORANGE   = (255, 128,   0)
+PURPLE   = (255,   0, 255)
+CYAN     = (  0, 255, 255)
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
+BGCOLOR = NAVYBLUE
+LIGHTBGCOLOR = GRAY
+BOXCOLOR = WHITE
+HIGHLIGHTCOLOR = BLUE
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+DONUT = 'donut'
+SQUARE = 'square'
+DIAMOND = 'diamond'
+LINES = 'lines'
+OVAL = 'oval'
 
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
+ALLCOLORS = (RED, GREEN, BLUE, YELLOW, ORANGE, PURPLE, CYAN)
+ALLSHAPES = (DONUT, SQUARE, DIAMOND, LINES, OVAL)
+assert len(ALLCOLORS) * len(ALLSHAPES) * 2 >= BOARDWIDTH * BOARDHEIGHT, "Доска слишком велика для определенного количества форм / цветов."
 
-# Translations
-*.mo
-*.pot
+class Menu:
+    def __init__(self, punkts = [120, 140, 'punkt', (250, 250, 30), (250, 30, 250)]):
+        self.punkts = punkts
 
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
+    def render(self, poverholst, font, num_punkt):
+        for i in self.punkts:
+            if num_punkt == i[5]:
+                poverholst.blit(font.render(i[2], 1, i[4]), (i[0], i[1]))
+            else:
+                poverholst.blit(font.render(i[2], 1, i[3]), (i[0], i[1]))
+punkts = 
+def main():
+    global FPSCLOCK, DISPLAYSURF
+    pygame.init()
+    FPSCLOCK = pygame.time.Clock()
+    DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
 
-# Flask stuff:
-instance/
-.webassets-cache
+    mousex = 0 # используется для хранения координаты x события мыши
+    mousey = 0 # используется для хранения координаты у события мыши
+    pygame.display.set_caption('Найди пару')
 
-# Scrapy stuff:
-.scrapy
+    mainBoard = getRandomizedBoard()
+    revealedBoxes = generateRevealedBoxesData(False)
 
-# Sphinx documentation
-docs/_build/
+    firstSelection = None # сохраняет (x, y) первого выбранного поля.
 
-# PyBuilder
-target/
+    DISPLAYSURF.fill(BGCOLOR)
 
-# Jupyter Notebook
-.ipynb_checkpoints
+    while True:
+        mouseClicked = False
 
-# IPython
-profile_default/
-ipython_config.py
+        DISPLAYSURF.fill(BGCOLOR) # рисуем окно
+        drawBoard(mainBoard, revealedBoxes)
 
-# pyenv
-.python-version
+        for event in pygame.event.get(): # цикл обработки событий
+            if event.type == QUIT or (event.type == KEYUP and event.key == K_ESCAPE):
+                pygame.quit()
+                sys.exit()
+            elif event.type == MOUSEMOTION:
+                mousex, mousey = event.pos
+            elif event.type == MOUSEBUTTONUP:
+                mousex, mousey = event.pos
+                mouseClicked = True
 
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
+        boxx, boxy = getBoxAtPixel(mousex, mousey)
+        if boxx != None and boxy != None:
+            # В данный момент мышь находится над полем.
+            if not revealedBoxes[boxx][boxy]:
+                drawHighlightBox(boxx, boxy)
+            if not revealedBoxes[boxx][boxy] and mouseClicked:
+                revealBoxesAnimation(mainBoard, [(boxx, boxy)])
+                revealedBoxes[boxx][boxy] = True
+                if firstSelection == None: # текущее поле было первым, на которое был нажат флажок
+                    firstSelection = (boxx, boxy)
+                else: # текущее поле было вторым выбранным полем
+                    # Проверяем, есть ли совпадение между двумя значками.
+                    icon1shape, icon1color = getShapeAndColor(mainBoard, firstSelection[0], firstSelection[1])
+                    icon2shape, icon2color = getShapeAndColor(mainBoard, boxx, boxy)
 
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow
-__pypackages__/
+                    if icon1shape != icon2shape or icon1color != icon2color:
+                        # Значки не совпадают. Закрываем оба выделенных элемента.
+                        pygame.time.wait(1000)
+                        coverBoxesAnimation(mainBoard, [(firstSelection[0], firstSelection[1]), (boxx, boxy)])
+                        revealedBoxes[firstSelection[0]][firstSelection[1]] = False
+                        revealedBoxes[boxx][boxy] = False
+                    elif hasWon(revealedBoxes): # проверяем, все ли пары найдены
+                        gameWonAnimation(mainBoard)
+                        pygame.time.wait(2000)
 
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
 
-# SageMath parsed files
-*.sage.py
+                        mainBoard = getRandomizedBoard()
+                        revealedBoxes = generateRevealedBoxesData(False)
 
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+                        # Показываем полностью нераскрытую доску на секунду.
+                        drawBoard(mainBoard, revealedBoxes)
+                        pygame.display.update()
+                        pygame.time.wait(1000)
+                    firstSelection = None # сбрасываем переменную
 
-# Spyder project settings
-.spyderproject
-.spyproject
+        # перерисовка экрана
+        pygame.display.update()
+        FPSCLOCK.tick(FPS)
 
-# Rope project settings
-.ropeproject
 
-# mkdocs documentation
-/site
+def generateRevealedBoxesData(val):
+    revealedBoxes = []
+    for i in range(BOARDWIDTH):
+        revealedBoxes.append([val] * BOARDHEIGHT)
+    return revealedBoxes
 
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
 
-# Pyre type checker
-.pyre/
+def getRandomizedBoard():
+    # Получаем список всех возможных форм во всех возможных цветах.
+    icons = []
+    for color in ALLCOLORS:
+        for shape in ALLSHAPES:
+            icons.append( (shape, color) )
+
+    random.shuffle(icons) # порядок на рандом
+    numIconsUsed = int(BOARDWIDTH * BOARDHEIGHT / 2) # подсчитываем, сколько иконок необходимо
+    icons = icons[:numIconsUsed] * 2 # делаем по две каждой
+    random.shuffle(icons)
+
+    # Создаём структуру данных доски с произвольно расположенными значками.
+    board = []
+    for x in range(BOARDWIDTH):
+        column = []
+        for y in range(BOARDHEIGHT):
+            column.append(icons[0])
+            del icons[0] # удаляем лишние значки
+        board.append(column)
+    return board
+
+
+def splitIntoGroupsOf(groupSize, theList):
+    # разбивает список на список списков, где внутренние списки содержат
+    # не более количества элементов groupSize
+    result = []
+    for i in range(0, len(theList), groupSize):
+        result.append(theList[i:i + groupSize])
+    return result
+
+
+def leftTopCoordsOfBox(boxx, boxy):
+    # Преобразует координаты доски в пиксельные координаты
+    left = boxx * (BOXSIZE + GAPSIZE) + XMARGIN
+    top = boxy * (BOXSIZE + GAPSIZE) + YMARGIN
+    return (left, top)
+
+
+def getBoxAtPixel(x, y):
+    for boxx in range(BOARDWIDTH):
+        for boxy in range(BOARDHEIGHT):
+            left, top = leftTopCoordsOfBox(boxx, boxy)
+            boxRect = pygame.Rect(left, top, BOXSIZE, BOXSIZE)
+            if boxRect.collidepoint(x, y):
+                return (boxx, boxy)
+    return (None, None)
+if __name__ == '__main__':
+    main()
