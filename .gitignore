@@ -1,3 +1,4 @@
+import os
 import random, pygame, sys
 from pygame.locals import *
 
@@ -7,8 +8,8 @@ WINDOWHEIGHT = 480 # размер окна
 REVEALSPEED = 8 # скорость крышек
 BOXSIZE = 40 # размер поля
 GAPSIZE = 10 # размер промежутка между рамками в пикселях
-BOARDWIDTH = 3 # количество столбов
-BOARDHEIGHT = 2 # количество строк
+BOARDWIDTH = 6 # количество столбов
+BOARDHEIGHT = 5 # количество строк
 assert (BOARDWIDTH * BOARDHEIGHT) % 2 == 0, 'На доске должно быть четное количество коробков для пар спичек.'
 XMARGIN = int((WINDOWWIDTH - (BOARDWIDTH * (BOXSIZE + GAPSIZE))) / 2)
 YMARGIN = int((WINDOWHEIGHT - (BOARDHEIGHT * (BOXSIZE + GAPSIZE))) / 2)
@@ -40,22 +41,55 @@ ALLCOLORS = (RED, GREEN, BLUE, YELLOW, ORANGE, PURPLE, CYAN)
 ALLSHAPES = (DONUT, SQUARE, DIAMOND, LINES, OVAL)
 assert len(ALLCOLORS) * len(ALLSHAPES) * 2 >= BOARDWIDTH * BOARDHEIGHT, "Доска слишком велика для определенного количества форм / цветов."
 
-class Menu:
-    def __init__(self, punkts = [120, 140, 'punkt', (250, 250, 30), (250, 30, 250)]):
-        self.punkts = punkts
 
-    def render(self, poverholst, font, num_punkt):
-        for i in self.punkts:
-            if num_punkt == i[5]:
-                poverholst.blit(font.render(i[2], 1, i[4]), (i[0], i[1]))
-            else:
-                poverholst.blit(font.render(i[2], 1, i[3]), (i[0], i[1]))
-punkts = 
+def load_image(name, colorkey=None):
+    fullname = os.path.join('image', name)
+    # если файл не существует, то выходим
+    if not os.path.isfile(fullname):
+        print(f"Файл с изображением '{fullname}' не найден")
+        sys.exit()
+    image = pygame.image.load(fullname)
+    return image
+
+FPS = 50
+
+def terminate():
+    pygame.quit()
+    sys.exit()
+
+def start_screen():
+    intro_text = ["Найди пару", "",
+                  "Правила игры",
+                  "Ваша задача найти одинаковые изображения,",
+                  "нажимая на квадратики"]
+
+    fon = pygame.transform.scale(load_image('кот.jpg'), (WINDOWWIDTH, WINDOWHEIGHT))
+    screen.blit(fon, (0, 0))
+    font = pygame.font.Font(None, 30)
+    text_coord = 50
+    for line in intro_text:
+        string_rendered = font.render(line, 1, pygame.Color('red'))
+        intro_rect = string_rendered.get_rect()
+        text_coord += 10
+        intro_rect.top = text_coord
+        intro_rect.x = 10
+        text_coord += intro_rect.height
+        screen.blit(string_rendered, intro_rect)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            elif event.type == pygame.KEYDOWN or \
+                    event.type == pygame.MOUSEBUTTONDOWN:
+                return  # начинаем игру
+        pygame.display.flip()
+
 def main():
-    global FPSCLOCK, DISPLAYSURF
+    global FPSCLOCK, screen
     pygame.init()
     FPSCLOCK = pygame.time.Clock()
-    DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
+    screen = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
 
     mousex = 0 # используется для хранения координаты x события мыши
     mousey = 0 # используется для хранения координаты у события мыши
@@ -66,12 +100,11 @@ def main():
 
     firstSelection = None # сохраняет (x, y) первого выбранного поля.
 
-    DISPLAYSURF.fill(BGCOLOR)
-
+    screen.fill(BGCOLOR)
+    start_screen()
     while True:
         mouseClicked = False
-
-        DISPLAYSURF.fill(BGCOLOR) # рисуем окно
+        screen.fill(BGCOLOR) # рисуем окно
         drawBoard(mainBoard, revealedBoxes)
 
         for event in pygame.event.get(): # цикл обработки событий
@@ -83,6 +116,7 @@ def main():
             elif event.type == MOUSEBUTTONUP:
                 mousex, mousey = event.pos
                 mouseClicked = True
+
 
         boxx, boxy = getBoxAtPixel(mousex, mousey)
         if boxx != None and boxy != None:
@@ -109,14 +143,8 @@ def main():
                         gameWonAnimation(mainBoard)
                         pygame.time.wait(2000)
 
-
                         mainBoard = getRandomizedBoard()
                         revealedBoxes = generateRevealedBoxesData(False)
-
-                        # Показываем полностью нераскрытую доску на секунду.
-                        drawBoard(mainBoard, revealedBoxes)
-                        pygame.display.update()
-                        pygame.time.wait(1000)
                     firstSelection = None # сбрасываем переменную
 
         # перерисовка экрана
@@ -178,5 +206,86 @@ def getBoxAtPixel(x, y):
             if boxRect.collidepoint(x, y):
                 return (boxx, boxy)
     return (None, None)
+
+
+def drawIcon(shape, color, boxx, boxy):
+    quarter = int(BOXSIZE * 0.25)
+    half =    int(BOXSIZE * 0.5)
+
+    left, top = leftTopCoordsOfBox(boxx, boxy) # получить координаты пикселей из координат доски
+    # рисуем фигуры
+    
+    
+def getShapeAndColor(board, boxx, boxy):
+    # значение формы для точек x, y сохраняется на доске
+    return board[boxx][boxy][0], board[boxx][boxy][1]
+
+
+def drawBoxCovers(board, boxes, coverage):
+    # Рисует квадратики, которые закрываются/раскрываются.
+    for box in boxes:
+        left, top = leftTopCoordsOfBox(box[0], box[1])
+        pygame.draw.rect(screen, BGCOLOR, (left, top, BOXSIZE, BOXSIZE))
+        shape, color = getShapeAndColor(board, box[0], box[1])
+        drawIcon(shape, color, box[0], box[1])
+        if coverage > 0: # only draw the cover if there is an coverage
+            pygame.draw.rect(screen, BOXCOLOR, (left, top, coverage, BOXSIZE))
+    pygame.display.update()
+    FPSCLOCK.tick(FPS)
+
+
+def revealBoxesAnimation(board, boxesToReveal):
+    # Анимация раскрытия квадратика
+    for coverage in range(BOXSIZE, (-REVEALSPEED) - 1, -REVEALSPEED):
+        drawBoxCovers(board, boxesToReveal, coverage)
+
+
+def coverBoxesAnimation(board, boxesToCover):
+    # Анимация обложки
+    for coverage in range(0, BOXSIZE + REVEALSPEED, REVEALSPEED):
+        drawBoxCovers(board, boxesToCover, coverage)
+
+
+def drawBoard(board, revealed):
+    # Рисует все поля в их закрытом или раскрытом состоянии.
+    for boxx in range(BOARDWIDTH):
+        for boxy in range(BOARDHEIGHT):
+            left, top = leftTopCoordsOfBox(boxx, boxy)
+            if not revealed[boxx][boxy]:
+                pygame.draw.rect(screen, BOXCOLOR, (left, top, BOXSIZE, BOXSIZE))
+            else:
+                shape, color = getShapeAndColor(board, boxx, boxy)
+                drawIcon(shape, color, boxx, boxy)
+
+
+def drawHighlightBox(boxx, boxy):
+    left, top = leftTopCoordsOfBox(boxx, boxy)
+    pygame.draw.rect(screen, HIGHLIGHTCOLOR, (left - 5, top - 5, BOXSIZE + 10, BOXSIZE + 10), 4)
+
+
+
+
+def gameWonAnimation(board):
+    # мигает цвет фона, когда игрок выиграл
+    coveredBoxes = generateRevealedBoxesData(True)
+    color1 = LIGHTBGCOLOR
+    color2 = BGCOLOR
+
+    for i in range(13):
+        color1, color2 = color2, color1
+        screen.fill(color1)
+        drawBoard(board, coveredBoxes)
+        pygame.display.update()
+        pygame.time.wait(300)
+
+
+def hasWon(revealedBoxes):
+    # Возвращает значение True, если все поля были открыты, в противном случае значение False
+    for i in revealedBoxes:
+        if False in i:
+            return False
+    return True
+
+
 if __name__ == '__main__':
     main()
